@@ -16,6 +16,14 @@ import '../uploads/upload_pipeline.dart';
 /// honestly in the upload progress UI instead of silently "succeeding".
 const String kUploadEndpoint = 'https://api.your-backend.example.com/v1/posts/media';
 
+/// Toggle for trying the full camera → editor → preview → export flow
+/// *without* a real backend. When `true`, `ExportScreen` skips the real
+/// `background_downloader` network call entirely and simulates upload
+/// progress instead, so you can test the whole studio standalone. Set
+/// this back to `false` (or remove it) once you point `kUploadEndpoint`
+/// at your actual API — real apps should never ship with this on.
+const bool kDemoMode = true;
+
 final renderPipelineProvider = Provider<RenderPipeline>((ref) {
   return RenderPipeline(adapters: [
     EasyVideoEditorAdapter(),
