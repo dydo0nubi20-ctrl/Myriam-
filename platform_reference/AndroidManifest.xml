@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- ══════════════════════════════════════════════════════════════
+         Camera (camerawesome) — required to record video / take photos.
+         ══════════════════════════════════════════════════════════════ -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="true" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+
+    <!-- ══════════════════════════════════════════════════════════════
+         Microphone (camerawesome video audio, record package for
+         voice-over recording).
+         ══════════════════════════════════════════════════════════════ -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+
+    <!-- ══════════════════════════════════════════════════════════════
+         Gallery access (wechat_assets_picker / photo_manager). Android
+         13+ (API 33) replaced the old blanket READ_EXTERNAL_STORAGE with
+         granular per-media-type permissions; both sets are declared so
+         the app works correctly whether it runs on Android 12 or 13+.
+         photo_manager's own manifest merges compatible defaults, but
+         these are declared explicitly so nothing is left to chance.
+         ══════════════════════════════════════════════════════════════ -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+
+    <!-- ══════════════════════════════════════════════════════════════
+         Network (background_downloader uploads, dio, any future API
+         calls to your own backend).
+         ══════════════════════════════════════════════════════════════ -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- ══════════════════════════════════════════════════════════════
+         background_downloader schedules real background work via
+         WorkManager; on Android 14+ a foreground-service type must be
+         declared for long-running data transfer, and on Android 12L+ a
+         notification permission is required to show upload progress.
+         ══════════════════════════════════════════════════════════════ -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+
+    <application
+        android:label="SetRize"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher"
+        android:requestLegacyExternalStorage="true">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+
+            <meta-data
+                android:name="io.flutter.embedding.android.NormalTheme"
+                android:resource="@style/NormalTheme" />
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+    </application>
+
+    <!-- Required from Android 11 (API 30) onward for camera / gallery
+         intents to resolve correctly under package visibility rules. -->
+    <queries>
+        <intent>
+            <action android:name="android.media.action.IMAGE_CAPTURE" />
+        </intent>
+        <intent>
+            <action android:name="android.media.action.VIDEO_CAPTURE" />
+        </intent>
+    </queries>
+
+</manifest>

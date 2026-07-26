@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>setrize</string>
+	<key>CFBundleDisplayName</key>
+	<string>SetRize</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(FLUTTER_BUILD_NAME)</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleVersion</key>
+	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+	<key>UIMainStoryboardFile</key>
+	<string>Main</string>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+	<key>UIViewControllerBasedStatusBarAppearance</key>
+	<false/>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
+
+	<!-- ══════════════════════════════════════════════════════════════
+	     Camera + microphone (camerawesome). Both strings are shown to
+	     the user verbatim in the OS permission dialog — replace with
+	     wording that matches how your app actually uses them if you
+	     want a more specific prompt.
+	     ══════════════════════════════════════════════════════════════ -->
+	<key>NSCameraUsageDescription</key>
+	<string>SetRize needs camera access so you can record videos and take photos for your posts.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>SetRize needs microphone access to record audio with your videos and voice-overs.</string>
+
+	<!-- ══════════════════════════════════════════════════════════════
+	     Photo library (wechat_assets_picker / photo_manager) — both
+	     read and write are needed: read to import existing media, write
+	     because photo_manager's picker can also save edited output back
+	     to the library.
+	     ══════════════════════════════════════════════════════════════ -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>SetRize needs access to your photo library so you can choose photos and videos to post.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>SetRize needs permission to save exported photos and videos to your library.</string>
+
+	<!-- google_mlkit_face_detection ships native binaries that are
+	     64-bit only (i386/armv7 are excluded at the Xcode build-settings
+	     level — see SETUP.md). No extra Info.plist key is required by
+	     ML Kit itself beyond the camera key already declared above. -->
+
+</dict>
+</plist>
