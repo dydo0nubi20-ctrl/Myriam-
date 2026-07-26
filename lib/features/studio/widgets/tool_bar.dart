@@ -49,7 +49,7 @@ class ToolBar extends StatelessWidget {
           _ToolIcon(icon: Icons.text_fields, label: 'Text', onTap: onAddText, accent: true),
           _ToolIcon(icon: Icons.emoji_emotions_outlined, label: 'Sticker', onTap: onAddSticker),
           _ToolIcon(icon: Icons.music_note, label: 'Music', onTap: onAddMusic),
-          _ToolIcon(icon: Icons.filter_vintage_outlined, label: 'Filter', onTap: hasSelection ? onFilters : null),
+          _ToolIcon(icon: Icons.filter_vintage_outlined, label: 'Filter', onTap: onFilters),
           _ToolIcon(icon: Icons.content_cut, label: 'Split', onTap: hasSelection ? onSplit : null),
           _ToolIcon(icon: Icons.delete_outline, label: 'Delete', onTap: hasSelection ? onDelete : null, destructive: true),
         ],
