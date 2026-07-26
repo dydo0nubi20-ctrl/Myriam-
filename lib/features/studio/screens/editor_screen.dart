@@ -18,6 +18,7 @@ import '../theme/studio_colors.dart';
 import '../utils/typedefs.dart';
 import '../widgets/layer_overlays.dart';
 import '../widgets/studio_button.dart';
+import '../widgets/timeline_widget.dart';
 import '../widgets/tool_bar.dart';
 
 class EditorScreen extends ConsumerStatefulWidget {
@@ -131,6 +132,16 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
             ),
             if (widget.isVideo) _trimAndCover(),
             _filterStrip(),
+            SizedBox(
+              height: 130,
+              child: TimelineWidget(
+                project: session.project,
+                playhead: session.playhead,
+                selectedLayerId: session.selectedLayerId,
+                onSeek: notifier.setPlayhead,
+                onLayerTap: notifier.selectLayer,
+              ),
+            ),
             ToolBar(
               hasSelection: session.selectedLayerId != null,
               canUndo: session.history.canUndo,
@@ -140,8 +151,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
               onAddText: _addText,
               onAddSticker: _addSticker,
               onAddMusic: _addMusicPlaceholderNotice,
-              onFilters: () {},
-              onSplit: () {},
+              onFilters: _selectPrimaryVideoLayer,
+              onSplit: _splitSelected,
               onDelete: _deleteSelected,
             ),
           ],
@@ -286,6 +297,27 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Open the audio panel from the music track to add a track.')),
     );
+  }
+
+  /// The color-filter strip below the preview is always visible and
+  /// applies to the video layer regardless of what's selected on the
+  /// timeline — the toolbar's "Filter" button exists mainly so tapping
+  /// it gives the user visible feedback (selecting the clip on the
+  /// timeline) rather than doing nothing, matching how tapping the base
+  /// clip works in mainstream editors.
+  void _selectPrimaryVideoLayer() {
+    final layerId = _primaryVideoLayerId;
+    if (layerId == null) return;
+    ref.read(studioSessionProvider.notifier).selectLayer(layerId);
+  }
+
+  void _splitSelected() {
+    final session = ref.read(studioSessionProvider);
+    final layerId = session.selectedLayerId;
+    if (layerId == null) return;
+    ref.read(studioSessionProvider.notifier).execute(
+          SplitClipCommand(layerId: layerId, atMicroseconds: session.playhead),
+        );
   }
 
   void _deleteSelected() {

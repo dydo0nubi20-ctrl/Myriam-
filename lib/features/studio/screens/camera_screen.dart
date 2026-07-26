@@ -107,10 +107,15 @@ class CameraScreen extends StatelessWidget {
     if (path == null) return;
 
     if (event.isPicture) {
-      // Dimensions aren't known synchronously here; the editor screen
-      // reads them off the file itself when it loads it.
+      final inspector = CameraRecorderService();
+      final media = await inspector.inspectPhoto(path);
       if (context.mounted) {
-        context.push('/studio/editor', extra: {'path': path, 'isVideo': false});
+        context.push('/studio/editor', extra: {
+          'path': media.filePath,
+          'isVideo': false,
+          'width': media.width,
+          'height': media.height,
+        });
       }
       return;
     }

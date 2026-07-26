@@ -93,6 +93,12 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
       _progress = 0.6;
     });
 
+    if (kDemoMode) {
+      final post = await _simulateUpload(project, renderedPath);
+      if (mounted) context.pop(post);
+      return;
+    }
+
     final uploader = ref.read(uploadPipelineProvider);
     final taskId = await uploader.enqueuePost(
       file: File(renderedPath),
@@ -141,6 +147,36 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
     if (mounted) context.pop(post);
   }
 
+  /// Demo-only stand-in for a real network upload. Fakes progress ticks
+  /// over ~1.2s so the UI behaves exactly like the real path, then
+  /// resolves with a `file://` URL pointing at the locally rendered
+  /// output — nothing is sent over the network, and no
+  /// `background_downloader` task is enqueued. This exists purely so the
+  /// full studio flow (camera → editor → preview → "share") can be
+  /// exercised without a backend; it is gated behind [kDemoMode] so it
+  /// can never accidentally run in a shipped build.
+  Future<CreatedPost> _simulateUpload(StudioProject project, String renderedPath) async {
+    for (var i = 1; i <= 6; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+      if (!mounted) break;
+      setState(() => _progress = 0.6 + (i / 6) * 0.4);
+    }
+    if (mounted) {
+      setState(() {
+        _phase = _Phase.done;
+        _progress = 1;
+      });
+    }
+    return CreatedPost(
+      url: Uri.file(renderedPath).toString(),
+      caption: project.caption,
+      hashtags: project.hashtags,
+      mentions: project.mentions,
+      isVideo: project.primaryVideoLayer != null,
+      localThumbnailPath: renderedPath,
+    );
+  }
+
   /// Real backends return the hosted URL in the response body — most
   /// commonly as `{"url": "..."}`. This tries that shape first and only
   /// falls back to the raw body / local path so the flow never crashes
@@ -161,37 +197,58 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
     return Scaffold(
       backgroundColor: StudioColors.canvas,
       body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(StudioSpacing.xl),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (_phase == _Phase.failed) ...[
-                  const Icon(Icons.error_outline, color: StudioColors.error, size: 48),
-                  const SizedBox(height: StudioSpacing.lg),
-                  Text(_error ?? 'Something went wrong', textAlign: TextAlign.center, style: const TextStyle(color: StudioColors.textSecondary)),
-                  const SizedBox(height: StudioSpacing.xl),
-                  StudioButton(label: 'Retry', icon: Icons.refresh, onPressed: _startExport),
-                  const SizedBox(height: StudioSpacing.md),
-                  StudioButton(label: 'Cancel', variant: StudioButtonVariant.secondary, onPressed: () => context.pop()),
-                ] else ...[
-                  SizedBox(
-                    width: 64,
-                    height: 64,
-                    child: CircularProgressIndicator(value: _progress, strokeWidth: 4, color: StudioColors.accent),
+        child: Stack(
+          children: [
+            if (kDemoMode)
+              Positioned(
+                top: StudioSpacing.md,
+                right: StudioSpacing.md,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: StudioSpacing.md, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: StudioColors.warning.withOpacity(0.15),
+                    border: Border.all(color: StudioColors.warning),
+                    borderRadius: BorderRadius.circular(StudioRadius.pill),
                   ),
-                  const SizedBox(height: StudioSpacing.lg),
-                  Text(
-                    _phase == _Phase.rendering ? 'Rendering…' : _phase == _Phase.uploading ? 'Uploading…' : 'Preparing…',
-                    style: const TextStyle(color: StudioColors.textPrimary, fontWeight: FontWeight.w600),
+                  child: const Text(
+                    'DEMO — no real upload',
+                    style: TextStyle(color: StudioColors.warning, fontSize: 11, fontWeight: FontWeight.w700),
                   ),
-                  const SizedBox(height: StudioSpacing.sm),
-                  Text('${(_progress * 100).toInt()}%', style: const TextStyle(color: StudioColors.textTertiary)),
-                ],
-              ],
+                ),
+              ),
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(StudioSpacing.xl),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (_phase == _Phase.failed) ...[
+                      const Icon(Icons.error_outline, color: StudioColors.error, size: 48),
+                      const SizedBox(height: StudioSpacing.lg),
+                      Text(_error ?? 'Something went wrong', textAlign: TextAlign.center, style: const TextStyle(color: StudioColors.textSecondary)),
+                      const SizedBox(height: StudioSpacing.xl),
+                      StudioButton(label: 'Retry', icon: Icons.refresh, onPressed: _startExport),
+                      const SizedBox(height: StudioSpacing.md),
+                      StudioButton(label: 'Cancel', variant: StudioButtonVariant.secondary, onPressed: () => context.pop()),
+                    ] else ...[
+                      SizedBox(
+                        width: 64,
+                        height: 64,
+                        child: CircularProgressIndicator(value: _progress, strokeWidth: 4, color: StudioColors.accent),
+                      ),
+                      const SizedBox(height: StudioSpacing.lg),
+                      Text(
+                        _phase == _Phase.rendering ? 'Rendering…' : _phase == _Phase.uploading ? 'Uploading…' : 'Preparing…',
+                        style: const TextStyle(color: StudioColors.textPrimary, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: StudioSpacing.sm),
+                      Text('${(_progress * 100).toInt()}%', style: const TextStyle(color: StudioColors.textTertiary)),
+                    ],
+                  ],
+                ),
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
