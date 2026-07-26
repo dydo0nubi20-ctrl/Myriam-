@@ -24,10 +24,11 @@ dependencies:
 
   # ── Video editing / export ────────────────────────────────────────
   video_editor_2: ^3.1.0
-  pro_video_editor: ^1.13.0
+  pro_video_editor: ^1.19.0
   easy_video_editor: ^0.1.6
   video_player: ^2.9.2
   chewie: ^1.8.5
+  cross_file: ^0.3.4+2
 
   # ── Audio ──────────────────────────────────────────────────────────
   just_audio: ^0.9.40
@@ -54,7 +55,7 @@ dependencies:
   # ── Text / stickers / emoji / GIF ─────────────────────────────────
   detectable_text_field: ^3.0.2
   emoji_picker_flutter: ^3.1.0
-  giphy_get: ^4.0.0
+  giphy_get: ^3.6.1+1
 
   # ── Permissions ─────────────────────────────────────────────────────
   permission_handler: ^11.3.1
