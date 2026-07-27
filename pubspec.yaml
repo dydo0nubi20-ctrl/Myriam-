@@ -36,8 +36,7 @@ dependencies:
   record: ^5.1.2
 
   # ── Gallery / media ────────────────────────────────────────────────
-  wechat_assets_picker: ^9.3.0
-  photo_manager: ^3.0.0
+  image_picker: ^1.2.0
 
   # ── Persistence (drafts) ──────────────────────────────────────────
   drift: ^2.20.0
