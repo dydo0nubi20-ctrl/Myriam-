@@ -2,19 +2,18 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:wechat_assets_picker/wechat_assets_picker.dart';
 
 import '../services/media_picker_service.dart';
 import '../theme/studio_colors.dart';
 import '../widgets/studio_button.dart';
 
 /// Entry point reached from the feed's "Import" action. It immediately
-/// opens the real WeChat-style picker (multi-select photos + videos);
-/// once the user confirms a single asset we hand it straight to the
-/// editor. Multi-asset stitching is a Phase-2 concern — for now, picking
-/// more than one asset just opens the editor with the first one and
-/// tells the user the rest are ignored, instead of silently dropping
-/// them with no feedback.
+/// opens the phone's own native gallery/photo picker (via `image_picker`)
+/// supporting multi-select photos + videos; once the user confirms a
+/// single asset we hand it straight to the editor. Multi-asset stitching
+/// is a Phase-2 concern — for now, picking more than one asset just
+/// opens the editor with the first one and tells the user the rest are
+/// ignored, instead of silently dropping them with no feedback.
 class GalleryScreen extends StatefulWidget {
   const GalleryScreen({super.key});
 
@@ -23,7 +22,7 @@ class GalleryScreen extends StatefulWidget {
 }
 
 class _GalleryScreenState extends State<GalleryScreen> {
-  final _picker = const MediaPickerService();
+  final _picker = MediaPickerService();
   bool _opening = false;
 
   @override
@@ -36,22 +35,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
     if (_opening) return;
     setState(() => _opening = true);
 
-    final hasAccess = await _picker.hasGalleryAccess();
-    if (!hasAccess) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Photo library access is required to import media.')),
-        );
-        context.pop();
-      }
-      return;
-    }
-
-    final results = await _picker.pickFromGallery(
-      context,
-      maxAssets: 10,
-      requestType: RequestType.common,
-    );
+    final results = await _picker.pickFromGallery();
 
     if (!mounted) return;
 
