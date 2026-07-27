@@ -12,12 +12,12 @@ class PermissionService {
 
   Future<bool> requestMicrophone() => _request(Permission.microphone);
 
-  /// Photos / videos library access.
-  ///
-  /// On Android 13+ this maps to granular media permissions, on iOS to
-  /// `NSPhotoLibraryUsageDescription`. `permission_handler`'s `Permission
-  /// .photos` already abstracts the platform difference.
-  Future<bool> requestPhotos() => _request(Permission.photos);
+  // NOTE: there is deliberately no `requestPhotos()` here. The gallery
+  // flow uses `image_picker`, which delegates to the system's own
+  // Photo Picker / gallery app — that picker runs out-of-process and
+  // needs no photo-library permission grant at all, on any supported
+  // Android or iOS version. Requesting one anyway would only add
+  // unnecessary friction for the user.
 
   Future<bool> requestCameraAndMicrophone() async {
     final statuses = await [
