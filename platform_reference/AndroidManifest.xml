@@ -16,22 +16,14 @@
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 
     <!-- ══════════════════════════════════════════════════════════════
-         Gallery access (wechat_assets_picker / photo_manager). Android
-         13+ (API 33) replaced the old blanket READ_EXTERNAL_STORAGE with
-         granular per-media-type permissions; both sets are declared so
-         the app works correctly whether it runs on Android 12 or 13+.
-         photo_manager's own manifest merges compatible defaults, but
-         these are declared explicitly so nothing is left to chance.
+         Gallery access (image_picker). Unlike the previous
+         wechat_assets_picker/photo_manager setup, image_picker delegates
+         to the system's own Photo Picker / gallery app via an intent —
+         the OS runs it out-of-process and only hands back the exact
+         files the user picked, so no READ_MEDIA_IMAGES/VIDEO or
+         READ_EXTERNAL_STORAGE permission is required at all, on any
+         supported Android version.
          ══════════════════════════════════════════════════════════════ -->
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
-    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
-    <uses-permission
-        android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32" />
-    <uses-permission
-        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
-        android:maxSdkVersion="28" />
 
     <!-- ══════════════════════════════════════════════════════════════
          Network (background_downloader uploads, dio, any future API
@@ -53,8 +45,7 @@
     <application
         android:label="SetRize"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher"
-        android:requestLegacyExternalStorage="true">
+        android:icon="@mipmap/ic_launcher">
 
         <activity
             android:name=".MainActivity"
