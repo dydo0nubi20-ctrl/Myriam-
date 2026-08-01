@@ -1,6 +1,7 @@
 library;
 
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:video_player/video_player.dart';
 
@@ -49,7 +50,18 @@ class CameraRecorderService {
     }
   }
 
-  CapturedMedia inspectPhoto(String path, {required int width, required int height}) {
+  /// Reads real width/height off a photo file by decoding just enough of
+  /// it with `dart:ui` to read the first frame's dimensions — no
+  /// third-party image package needed, and the call sites (camera screen
+  /// and gallery picker) no longer need to pass guessed dimensions they
+  /// don't actually have.
+  Future<CapturedMedia> inspectPhoto(String path) async {
+    final bytes = await File(path).readAsBytes();
+    final codec = await ui.instantiateImageCodec(bytes);
+    final frame = await codec.getNextFrame();
+    final width = frame.image.width;
+    final height = frame.image.height;
+    frame.image.dispose();
     return CapturedMedia(
       filePath: path,
       isVideo: false,
