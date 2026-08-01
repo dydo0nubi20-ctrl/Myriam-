@@ -73,7 +73,7 @@ class TimelineWidget extends StatelessWidget {
           Container(
             margin: const EdgeInsets.symmetric(horizontal: StudioSpacing.xs),
             decoration: BoxDecoration(
-              color: StudioColors.surfaceRaised.withOpacity(0.4),
+              color: StudioColors.surfaceRaised.withValues(alpha: 0.4),
               borderRadius: BorderRadius.circular(StudioRadius.sm),
             ),
           ),
@@ -98,7 +98,7 @@ class TimelineWidget extends StatelessWidget {
         onTap: () => onLayerTap?.call(layer.layerId),
         child: Container(
           decoration: BoxDecoration(
-            color: color.withOpacity(0.85),
+            color: color.withValues(alpha: 0.85),
             borderRadius: BorderRadius.circular(StudioRadius.sm),
             border: Border.all(color: selected ? Colors.white : color, width: selected ? 2 : 1),
           ),
