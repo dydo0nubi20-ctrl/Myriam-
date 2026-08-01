@@ -78,7 +78,7 @@ class _StudioButtonState extends State<StudioButton> with SingleTickerProviderSt
   }
 
   Color _backgroundColor(bool disabled) {
-    if (disabled) return StudioColors.surfaceRaised.withOpacity(0.5);
+    if (disabled) return StudioColors.surfaceRaised.withValues(alpha: 0.5);
     return switch (widget.variant) {
       StudioButtonVariant.primary => StudioColors.accent,
       StudioButtonVariant.secondary => StudioColors.surfaceRaised,
