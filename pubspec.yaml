@@ -79,3 +79,16 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+
+  include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+
+linter:
+  rules:
+    public_member_api_docs: false
+    lines_longer_than_80_chars: false
