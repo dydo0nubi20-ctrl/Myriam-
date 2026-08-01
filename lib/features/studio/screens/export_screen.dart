@@ -206,7 +206,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: StudioSpacing.md, vertical: 6),
                   decoration: BoxDecoration(
-                    color: StudioColors.warning.withOpacity(0.15),
+                    color: StudioColors.warning.withValues(alpha: 0.15),
                     border: Border.all(color: StudioColors.warning),
                     borderRadius: BorderRadius.circular(StudioRadius.pill),
                   ),
