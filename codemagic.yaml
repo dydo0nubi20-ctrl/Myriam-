@@ -11,8 +11,8 @@ workflows:
           flutter create --platforms=android --org com.setrize --project-name setrize .
       - name: Set minSdkVersion to 23
         script: |
-          sed -i 's/minSdkVersion .*/minSdkVersion 23/' android/app/build.gradle
-          sed -i 's/minSdk .*/minSdk 23/' android/app/build.gradle
+          perl -i -pe 's/minSdkVersion\s+\d+/minSdkVersion 23/g' android/app/build.gradle
+          perl -i -pe 's/minSdk\s+\d+/minSdk 23/g' android/app/build.gradle
       - name: Copy Android permissions
         script: |
           cp platform_reference/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
