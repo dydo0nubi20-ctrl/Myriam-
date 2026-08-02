@@ -3,47 +3,21 @@ workflows:
     name: SetRize Android
     max_build_duration: 60
     environment:
-      flutter: stable
+      # Pin Flutter to 3.24.5 — generates AGP 8.x projects which are
+      # compatible with get_thumbnail_video (used by video_editor_2).
+      # Flutter 3.27+ generates AGP 9.x projects that break this plugin.
+      flutter: 3.24.5
     scripts:
       - name: Generate Android project
         script: |
           mkdir -p android
           flutter create --platforms=android --org com.setrize --project-name setrize .
-      - name: Patch Android Gradle config
+      - name: Set minSdkVersion to 23
         script: |
-          # 1. Downgrade AGP from 9.x to 8.7.0 in settings.gradle.kts
-          #    Kotlin DSL syntax: id("com.android.settings") version "X.Y.Z"
-          if [ -f android/settings.gradle.kts ]; then
-            perl -i -pe 's/id\("com\.android\.settings"\)\s+version\s+"[^"]+"/id("com.android.settings") version "8.7.0"/g' android/settings.gradle.kts
-            perl -i -pe 's/id\("com\.android\.application"\)\s+version\s+"[^"]+"/id("com.android.application") version "8.7.0"/g' android/settings.gradle.kts
-          fi
-          if [ -f android/settings.gradle ]; then
-            perl -i -pe 's/com\.android\.settings\s+version\s+"[^"]+"/com.android.settings version "8.7.0"/g' android/settings.gradle
-          fi
-
-          # 2. Set minSdk to 23 (handle both Groovy and Kotlin DSL)
-          if [ -f android/app/build.gradle.kts ]; then
-            perl -i -pe 's/minSdk\s*=\s*flutter\.minSdkVersion/minSdk = 23/g' android/app/build.gradle.kts
-            perl -i -pe 's/minSdk\s*=\s*\d+/minSdk = 23/g' android/app/build.gradle.kts
-          fi
-          if [ -f android/app/build.gradle ]; then
-            perl -i -pe 's/minSdkVersion\s+flutter\.minSdkVersion/minSdkVersion 23/g' android/app/build.gradle
-            perl -i -pe 's/minSdkVersion\s+\d+/minSdkVersion 23/g' android/app/build.gradle
-          fi
-
-          # 3. Disable AGP 9 new DSL enforcement
-          echo "" >> android/gradle.properties
-          echo "android.newDsl=false" >> android/gradle.properties
-
-          # Debug: show patched files
-          echo "=== settings.gradle.kts ==="
-          cat android/settings.gradle.kts 2>/dev/null || echo "(not found)"
-          echo ""
-          echo "=== minSdk line ==="
-          grep -n "minSdk" android/app/build.gradle.kts 2>/dev/null || grep -n "minSdk" android/app/build.gradle 2>/dev/null
-          echo ""
-          echo "=== gradle.properties (last 3 lines) ==="
-          tail -3 android/gradle.properties
+          perl -i -pe 's/minSdkVersion\s+flutter\.minSdkVersion/minSdkVersion 23/g' android/app/build.gradle
+          perl -i -pe 's/minSdkVersion\s+\d+/minSdkVersion 23/g' android/app/build.gradle
+          perl -i -pe 's/minSdk\s*=\s*flutter\.minSdkVersion/minSdk = 23/g' android/app/build.gradle.kts
+          perl -i -pe 's/minSdk\s*=\s*\d+/minSdk = 23/g' android/app/build.gradle.kts
       - name: Copy Android permissions
         script: |
           cp platform_reference/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
