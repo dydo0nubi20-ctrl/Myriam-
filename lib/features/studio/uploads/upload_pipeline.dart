@@ -5,6 +5,9 @@ import 'dart:io';
 
 import 'package:background_downloader/background_downloader.dart';
 
+import '../../../core/errors/studio_failure.dart';
+import '../../../core/logging/app_logger.dart';
+
 enum UploadState { queued, uploading, completed, failed, cancelled, paused }
 
 class UploadProgress {
@@ -12,21 +15,17 @@ class UploadProgress {
   final double fraction;
   final UploadState state;
   final String? resultUrl;
-  final String? error;
+  final StudioFailure? failure;
 
   const UploadProgress({
     required this.taskId,
     required this.fraction,
     required this.state,
     this.resultUrl,
-    this.error,
+    this.failure,
   });
 }
 
-/// Wraps `background_downloader`'s `UploadTask`, which is backed by
-/// `WorkManager` on Android and `URLSession` background sessions on
-/// iOS — the upload genuinely keeps running if the user backgrounds or
-/// force-closes the app, which a plain `dio` multipart POST cannot do.
 class UploadPipeline {
   UploadPipeline({required this.endpoint, this.headers = const {}});
 
@@ -34,7 +33,8 @@ class UploadPipeline {
   final Map<String, String> headers;
 
   bool _listening = false;
-  final StreamController<UploadProgress> _progress = StreamController.broadcast();
+  final StreamController<UploadProgress> _progress =
+      StreamController.broadcast();
   Stream<UploadProgress> get progress => _progress.stream;
 
   void _ensureListening() {
@@ -49,6 +49,10 @@ class UploadPipeline {
     Map<String, String> fields = const {},
   }) async {
     _ensureListening();
+
+    if (!await file.exists()) {
+      throw SourceNotFoundFailure(file.path);
+    }
 
     final taskId = 'upload_$postId';
     final task = UploadTask(
@@ -66,35 +70,33 @@ class UploadPipeline {
       requiresWiFi: false,
     );
 
-    _progress.add(UploadProgress(taskId: taskId, fraction: 0, state: UploadState.queued));
+    _progress.add(UploadProgress(
+        taskId: taskId, fraction: 0, state: UploadState.queued));
     final enqueued = await FileDownloader().enqueue(task);
     if (!enqueued) {
-      _progress.add(const UploadProgress(taskId: '', fraction: 0, state: UploadState.failed, error: 'Could not enqueue upload'));
-      throw StateError('FileDownloader refused the upload task');
+      final failure = UnknownFailure(
+        StateError('FileDownloader refused the upload task'),
+        StackTrace.current,
+      );
+      _progress.add(UploadProgress(
+          taskId: '', fraction: 0, state: UploadState.failed, failure: failure));
+      throw failure;
     }
     return taskId;
   }
 
-  Future<void> cancel(String taskId) => FileDownloader().cancelTaskWithId(taskId);
+  Future<void> cancel(String taskId) =>
+      FileDownloader().cancelTaskWithId(taskId);
 
   void _onUpdate(TaskUpdate update) {
     if (update is TaskStatusUpdate) {
-      final state = switch (update.status) {
-        TaskStatus.enqueued => UploadState.queued,
-        TaskStatus.running => UploadState.uploading,
-        TaskStatus.waitingToRetry => UploadState.uploading,
-        TaskStatus.complete => UploadState.completed,
-        TaskStatus.canceled => UploadState.cancelled,
-        TaskStatus.paused => UploadState.paused,
-        TaskStatus.notFound => UploadState.failed,
-        TaskStatus.failed => UploadState.failed,
-      };
+      final (state, failure) = _mapStatus(update.status, update.exception);
       _progress.add(UploadProgress(
         taskId: update.task.taskId,
         fraction: state == UploadState.completed ? 1 : 0,
         state: state,
-        resultUrl: update.responseBody,
-        error: state == UploadState.failed ? update.exception?.toString() : null,
+        failure: failure,
+        resultUrl: state == UploadState.completed ? update.responseBody : null,
       ));
     } else if (update is TaskProgressUpdate) {
       _progress.add(UploadProgress(
@@ -103,6 +105,42 @@ class UploadPipeline {
         state: UploadState.uploading,
       ));
     }
+  }
+
+  (UploadState, StudioFailure?) _mapStatus(
+      TaskStatus status, Object? exception) {
+    return switch (status) {
+      TaskStatus.enqueued => (UploadState.queued, null),
+      TaskStatus.running => (UploadState.uploading, null),
+      TaskStatus.waitingToRetry => (UploadState.uploading, null),
+      TaskStatus.complete => (UploadState.completed, null),
+      TaskStatus.canceled =>
+        (UploadState.cancelled, const CancelledFailure()),
+      TaskStatus.paused => (UploadState.paused, null),
+      TaskStatus.notFound => (
+          UploadState.failed,
+          SourceNotFoundFailure(exception.toString())
+        ),
+      TaskStatus.failed => _classifyFailure(exception),
+    };
+  }
+
+  (UploadState, StudioFailure) _classifyFailure(Object? exception) {
+    final msg = exception.toString().toLowerCase();
+    if (msg.contains('socket') ||
+        msg.contains('network') ||
+        msg.contains('timeout') ||
+        msg.contains('connection')) {
+      return (UploadState.failed, NetworkFailure(cause: exception));
+    }
+    if (msg.contains('403') || msg.contains('401')) {
+      return (UploadState.failed, const PermissionFailure('Authentication'));
+    }
+    AppLogger.w('unclassified upload failure', error: exception);
+    return (
+      UploadState.failed,
+      UnknownFailure(exception ?? 'Upload failed', StackTrace.current)
+    );
   }
 
   Future<void> dispose() => _progress.close();
