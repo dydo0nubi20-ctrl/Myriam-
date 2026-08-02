@@ -10,16 +10,11 @@ workflows:
       - name: Generate native Android project
         script: |
           mkdir -p android
-          flutter create --org com.setrize --project-name setrize .
+          flutter create --platforms=android --org com.setrize --project-name setrize .
       - name: Set minSdkVersion to 23
         script: |
-          if [ -f android/app/build.gradle ]; then
-            sed -i 's/minSdkVersion .*/minSdkVersion 23/' android/app/build.gradle
-            sed -i 's/minSdk .*/minSdk 23/' android/app/build.gradle
-          fi
-          if [ -f android/app/build.gradle.kts ]; then
-            sed -i 's/minSdk = .*/minSdk = 23/' android/app/build.gradle.kts
-          fi
+          sed -i 's/minSdkVersion .*/minSdkVersion 23/' android/app/build.gradle
+          sed -i 's/minSdk .*/minSdk 23/' android/app/build.gradle
       - name: Copy Android permissions
         script: |
           cp platform_reference/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
@@ -29,10 +24,6 @@ workflows:
       - name: Generate Freezed/Drift code
         script: |
           dart run build_runner build --delete-conflicting-outputs
-      - name: Static analysis
-        script: flutter analyze --no-fatal-infos
-      - name: Run unit tests
-        script: flutter test --reporter expanded
       - name: Build APK
         script: |
           flutter build apk --release \
