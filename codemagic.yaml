@@ -5,20 +5,14 @@ workflows:
     environment:
       flutter: stable
       vars:
-        UPLOAD_ENDPOINT:
-          required: false
-          default: "https://api.your-backend.example.com/v1/posts/media"
+        UPLOAD_ENDPOINT: "https://api.your-backend.example.com/v1/posts/media"
     scripts:
       - name: Generate native Android project
         script: |
-          # Ensure android/ directory exists (Codemagic sometimes needs this hint)
           mkdir -p android
-          # Generate the full native scaffolding without --platforms flag
-          # (more reliable across Flutter versions)
           flutter create --org com.setrize --project-name setrize .
       - name: Set minSdkVersion to 23
         script: |
-          # Auto-patch minSdkVersion regardless of Gradle file format (groovy vs kts)
           if [ -f android/app/build.gradle ]; then
             sed -i 's/minSdkVersion .*/minSdkVersion 23/' android/app/build.gradle
             sed -i 's/minSdk .*/minSdk 23/' android/app/build.gradle
@@ -36,13 +30,9 @@ workflows:
         script: |
           dart run build_runner build --delete-conflicting-outputs
       - name: Static analysis
-        script: |
-          flutter analyze --no-fatal-infos
-        continue_on_error: true
+        script: flutter analyze --no-fatal-infos
       - name: Run unit tests
-        script: |
-          flutter test --reporter expanded
-        continue_on_error: true
+        script: flutter test --reporter expanded
       - name: Build APK
         script: |
           flutter build apk --release \
