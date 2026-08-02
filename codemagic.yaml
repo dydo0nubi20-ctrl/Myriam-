@@ -13,6 +13,25 @@ workflows:
         script: |
           perl -i -pe 's/minSdkVersion\s+\d+/minSdkVersion 23/g' android/app/build.gradle
           perl -i -pe 's/minSdk\s+\d+/minSdk 23/g' android/app/build.gradle
+      - name: Fix AGP version (downgrade to 8.7.0 for plugin compatibility)
+        script: |
+          # Pin AGP to 8.7.0 instead of 9.x — get_thumbnail_video and other
+          # plugins use the old DSL which AGP 9+ no longer reads.
+          for f in android/settings.gradle android/settings.gradle.kts; do
+            if [ -f "$f" ]; then
+              perl -i -pe 's/com\.android\.settings version "[^"]+"/com.android.settings version "8.7.0"/g' "$f"
+              perl -i -pe 's/com\.android\.application version "[^"]+"/com.android.application version "8.7.0"/g' "$f"
+            fi
+          done
+          # Also patch build.gradle classpath if it uses the old style
+          for f in android/build.gradle android/build.gradle.kts; do
+            if [ -f "$f" ]; then
+              perl -i -pe 's/com\.android\.tools\.build:gradle:[\d.]+/com.android.tools.build:gradle:8.7.0/g' "$f"
+            fi
+          done
+          # Disable new DSL enforcement
+          echo "android.newDsl=false" >> android/gradle.properties
+          echo "AGP pinned to 8.7.0"
       - name: Copy Android permissions
         script: |
           cp platform_reference/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
