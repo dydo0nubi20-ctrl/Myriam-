@@ -1,6 +1,4 @@
----
 
-## 6️⃣ `lib/core/config/app_config.dart` (ملف جديد)
 
 ```dart
 import 'package:flutter/foundation.dart';
