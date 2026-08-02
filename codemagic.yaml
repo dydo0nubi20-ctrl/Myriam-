@@ -1,13 +1,11 @@
 workflows:
   android-workflow:
-    name: SetRize Android Build
+    name: SetRize Android
     max_build_duration: 60
     environment:
       flutter: stable
-      vars:
-        UPLOAD_ENDPOINT: "https://api.your-backend.example.com/v1/posts/media"
     scripts:
-      - name: Generate native Android project
+      - name: Generate Android project
         script: |
           mkdir -p android
           flutter create --platforms=android --org com.setrize --project-name setrize .
@@ -21,7 +19,7 @@ workflows:
       - name: Install packages
         script: |
           flutter pub get
-      - name: Generate Freezed/Drift code
+      - name: Generate code
         script: |
           dart run build_runner build --delete-conflicting-outputs
       - name: Build APK
