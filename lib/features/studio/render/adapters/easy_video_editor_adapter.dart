@@ -5,19 +5,15 @@ import 'dart:async';
 import 'package:easy_video_editor/easy_video_editor.dart';
 
 import '../../entities/layer.dart';
+import '../../entities/project.dart';
 import '../render_pipeline.dart';
 
-/// Trim-only export path. `easy_video_editor` runs entirely on native
-/// platform APIs (`MediaCodec`/`AVFoundation`) — no FFmpeg binary, no GPL
-/// concerns, much smaller app size than the alternative. It's picked
-/// whenever [isPlainTrimOnly] says the project has no overlays or filter,
-/// which covers the large majority of quick posts.
 class EasyVideoEditorAdapter implements RenderAdapter {
   @override
   String get id => 'easy_video_editor';
 
   @override
-  bool supports(project) => isPlainTrimOnly(project);
+  bool supports(StudioProject project) => isPlainTrimOnly(project);
 
   @override
   Stream<RenderProgress> render(RenderJob job, CancellationToken token) {
