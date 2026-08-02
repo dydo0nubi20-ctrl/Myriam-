@@ -1,23 +1,32 @@
 import 'package:background_downloader/background_downloader.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/logging/app_logger.dart';
 import '../features/studio/state/studio_providers.dart';
 
 class AppBootstrap {
   Future<ProviderContainer> compose() async {
-    // background_downloader needs `.start()` before any enqueue call so it
-    // can restore tasks that were in-flight when the app was last killed,
-    // and so it has time to set up the WorkManager / URLSession config
-    // before the first upload is enqueued.
-    await FileDownloader().start();
-
+    await _startBackgroundDownloader();
     final container = ProviderContainer();
-
-    // Warm up the SQLite file so the first draft save doesn't stall the
-    // export screen. This is cheap (just opens the file and runs any
-    // pending migrations).
-    await container.read(draftRepositoryProvider).initialize();
-
+    await _warmUpDraftStore(container);
     return container;
+  }
+
+  Future<void> _startBackgroundDownloader() async {
+    try {
+      await FileDownloader().start();
+      AppLogger.d('background_downloader started');
+    } catch (e, st) {
+      AppLogger.w('background_downloader failed to start', error: e, stack: st);
+    }
+  }
+
+  Future<void> _warmUpDraftStore(ProviderContainer container) async {
+    try {
+      await container.read(draftRepositoryProvider).initialize();
+      AppLogger.d('draft repository warmed up');
+    } catch (e, st) {
+      AppLogger.w('draft repository failed to initialize', error: e, stack: st);
+    }
   }
 }
