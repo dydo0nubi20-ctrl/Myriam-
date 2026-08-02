@@ -3,33 +3,51 @@ workflows:
     name: SetRize Android
     max_build_duration: 60
     environment:
-      # Flutter 3.29.0 — the narrow window that satisfies ALL dependencies:
-      #   - image_picker (needs Dart 3.6.0+) ✅
-      #   - pro_video_editor (needs Flutter 3.29.0+) ✅
-      #   - get_thumbnail_video (breaks on AGP 9+, needs AGP 8.x) ✅
-      # Flutter 3.27.0 → pro_video_editor fails
-      # Flutter 3.32+   → AGP 9.x, get_thumbnail_video fails
-      flutter: 3.29.0
+      flutter: stable
     scripts:
       - name: Generate Android project
         script: |
           mkdir -p android
           flutter create --platforms=android --org com.setrize --project-name setrize .
+
       - name: Set minSdkVersion to 23
         script: |
-          perl -i -pe 's/minSdkVersion\s+flutter\.minSdkVersion/minSdkVersion 23/g' android/app/build.gradle
-          perl -i -pe 's/minSdkVersion\s+\d+/minSdkVersion 23/g' android/app/build.gradle
-          perl -i -pe 's/minSdk\s*=\s*flutter\.minSdkVersion/minSdk = 23/g' android/app/build.gradle.kts
-          perl -i -pe 's/minSdk\s*=\s*\d+/minSdk = 23/g' android/app/build.gradle.kts
+          GRADLE_FILE="android/app/build.gradle"
+          if [ -f "android/app/build.gradle.kts" ]; then
+            GRADLE_FILE="android/app/build.gradle.kts"
+          fi
+          sed -i.bak -E 's/minSdkVersion[[:space:]]+[0-9]+/minSdkVersion 23/' "$GRADLE_FILE"
+          sed -i.bak -E 's/minSdk[[:space:]]*=[[:space:]]*[0-9]+/minSdk = 23/' "$GRADLE_FILE"
+          rm -f "$GRADLE_FILE.bak"
+
       - name: Copy Android permissions
         script: |
           cp platform_reference/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
+
       - name: Install packages
         script: |
           flutter pub get
+
+      - name: Patch Android Gradle config
+        script: |
+          PLUGIN_GRADLE=$(find $HOME/.pub-cache -path "*get_thumbnail_video*/android/build.gradle" | head -n 1)
+          echo "Found: $PLUGIN_GRADLE"
+          if [ -n "$PLUGIN_GRADLE" ]; then
+            sed -i.bak "/apply plugin: 'kotlin-android'/d" "$PLUGIN_GRADLE"
+            sed -i.bak "/id 'kotlin-android'/d" "$PLUGIN_GRADLE"
+            sed -i.bak "/id(\"kotlin-android\")/d" "$PLUGIN_GRADLE"
+            cat "$PLUGIN_GRADLE"
+          else
+            echo "WARNING: get_thumbnail_video not found in pub-cache"
+          fi
+          echo "android.newDsl=false" >> android/gradle.properties
+          echo "android.builtInKotlin=false" >> android/gradle.properties
+          cat android/gradle.properties
+
       - name: Generate code
         script: |
           dart run build_runner build --delete-conflicting-outputs
+
       - name: Build APK
         script: |
           flutter build apk --release \
