@@ -3,10 +3,12 @@ workflows:
     name: SetRize Android
     max_build_duration: 60
     environment:
-      # Pin Flutter to 3.24.5 — generates AGP 8.x projects which are
-      # compatible with get_thumbnail_video (used by video_editor_2).
-      # Flutter 3.27+ generates AGP 9.x projects that break this plugin.
-      flutter: 3.24.5
+      # Flutter 3.27.0 hits the sweet spot:
+      #   - Dart 3.6.0 (satisfies image_picker >=1.2.0 requirement)
+      #   - AGP 8.7.x (compatible with get_thumbnail_video plugin)
+      # Flutter 3.24.x → Dart too old (image_picker fails)
+      # Flutter 3.32+   → AGP 9.x (get_thumbnail_video fails)
+      flutter: 3.27.0
     scripts:
       - name: Generate Android project
         script: |
