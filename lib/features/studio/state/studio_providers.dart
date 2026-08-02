@@ -2,6 +2,7 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/config/app_config.dart';
 import '../drafts/draft_repository.dart';
 import '../export/export_pipeline.dart';
 import '../render/adapters/easy_video_editor_adapter.dart';
@@ -9,20 +10,8 @@ import '../render/adapters/pro_video_editor_adapter.dart';
 import '../render/render_pipeline.dart';
 import '../uploads/upload_pipeline.dart';
 
-/// Replace with your real backend's media-upload endpoint. Left as an
-/// obvious placeholder URL (not a fabricated "working" one) on purpose —
-/// `background_downloader` will simply get an HTTP error from this host
-/// until you point it at your own API, and that failure will show up
-/// honestly in the upload progress UI instead of silently "succeeding".
-const String kUploadEndpoint = 'https://api.your-backend.example.com/v1/posts/media';
-
-/// Toggle for trying the full camera → editor → preview → export flow
-/// *without* a real backend. When `true`, `ExportScreen` skips the real
-/// `background_downloader` network call entirely and simulates upload
-/// progress instead, so you can test the whole studio standalone. Set
-/// this back to `false` (or remove it) once you point `kUploadEndpoint`
-/// at your actual API — real apps should never ship with this on.
-const bool kDemoMode = true;
+export '../../../core/config/app_config.dart'
+    show kDemoMode, kUploadEndpoint, kAppEnv;
 
 final renderPipelineProvider = Provider<RenderPipeline>((ref) {
   return RenderPipeline(adapters: [
