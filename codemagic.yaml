@@ -4,21 +4,49 @@ workflows:
     max_build_duration: 60
     environment:
       flutter: stable
+      vars:
+        UPLOAD_ENDPOINT:
+          required: false
+          default: "https://api.your-backend.example.com/v1/posts/media"
     scripts:
       - name: Generate native Android project
         script: |
-          flutter create --platforms=android --org com.setrize .
-      - name: Copy real Android permissions
+          # Ensure android/ directory exists (Codemagic sometimes needs this hint)
+          mkdir -p android
+          # Generate the full native scaffolding without --platforms flag
+          # (more reliable across Flutter versions)
+          flutter create --org com.setrize --project-name setrize .
+      - name: Set minSdkVersion to 23
+        script: |
+          # Auto-patch minSdkVersion regardless of Gradle file format (groovy vs kts)
+          if [ -f android/app/build.gradle ]; then
+            sed -i 's/minSdkVersion .*/minSdkVersion 23/' android/app/build.gradle
+            sed -i 's/minSdk .*/minSdk 23/' android/app/build.gradle
+          fi
+          if [ -f android/app/build.gradle.kts ]; then
+            sed -i 's/minSdk = .*/minSdk = 23/' android/app/build.gradle.kts
+          fi
+      - name: Copy Android permissions
         script: |
           cp platform_reference/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
-      - name: Get Flutter packages
+      - name: Install packages
         script: |
           flutter pub get
       - name: Generate Freezed/Drift code
         script: |
           dart run build_runner build --delete-conflicting-outputs
+      - name: Static analysis
+        script: |
+          flutter analyze --no-fatal-infos
+        continue_on_error: true
+      - name: Run unit tests
+        script: |
+          flutter test --reporter expanded
+        continue_on_error: true
       - name: Build APK
         script: |
-          flutter build apk --release
+          flutter build apk --release \
+            --dart-define=APP_ENV=dev \
+            --dart-define=DISABLE_DEMO_MODE=false
     artifacts:
       - build/app/outputs/flutter-apk/*.apk
