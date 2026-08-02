@@ -7,21 +7,12 @@ import 'package:flutter/material.dart' show Offset;
 import 'package:pro_video_editor/pro_video_editor.dart' as pve;
 
 import '../../entities/layer.dart';
+import '../../entities/project.dart';
 import '../../utils/typedefs.dart';
 import '../filter_registry.dart';
 import '../layer_rasterizer.dart';
 import '../render_pipeline.dart';
 
-/// Full compositor path: trims the clip, bakes in the chosen color
-/// filter via `colorFilters`, and overlays every text/sticker layer as a
-/// rasterized PNG `pve.ImageLayer`. Picked whenever [isPlainTrimOnly] is
-/// false, i.e. whenever there's anything `easy_video_editor` alone can't
-/// express.
-///
-/// NAMING NOTE — `pro_video_editor` exports its own `ImageLayer` class;
-/// our Freezed entity also has a subtype called `ImageLayer`. Both are
-/// referenced in this file, so `pro_video_editor` is imported with the
-/// `pve` prefix to avoid an ambiguity compile error.
 class ProVideoEditorAdapter implements RenderAdapter {
   const ProVideoEditorAdapter({LayerRasterizer? rasterizer})
       : _rasterizer = rasterizer ?? const LayerRasterizer();
@@ -32,7 +23,7 @@ class ProVideoEditorAdapter implements RenderAdapter {
   String get id => 'pro_video_editor';
 
   @override
-  bool supports(project) =>
+  bool supports(StudioProject project) =>
       project.layers.whereType<VideoLayer>().length == 1;
 
   @override
@@ -71,12 +62,6 @@ class ProVideoEditorAdapter implements RenderAdapter {
     final canvasWidth = source.width > 0 ? source.width : 1080;
     final canvasHeight = source.height > 0 ? source.height : 1920;
 
-    // Rasterize every text/sticker layer to a full-canvas transparent PNG
-    // then hand it to pro_video_editor as a pve.ImageLayer (the package's
-    // own overlay type — different from our Freezed ImageLayer entity).
-    // The layer's fractional position is already baked into the pixels
-    // by the rasterizer, so the offset passed to pro_video_editor is
-    // always (0, 0) — one full-canvas PNG per text/sticker layer.
     final pveImageLayers = <pve.ImageLayer>[];
     for (final layer in project.layers) {
       if (token.isCancelled) break;
@@ -128,10 +113,6 @@ class ProVideoEditorAdapter implements RenderAdapter {
           : [pve.ColorFilter(matrix: filter.matrix)],
     );
 
-    // pro_video_editor exposes a real per-task progress stream keyed by
-    // the render's own `id` (confirmed against the package's current
-    // README — `progressStreamById`), so real native encoding progress
-    // is forwarded instead of a fabricated percentage.
     final progressSub = pve.ProVideoEditor.instance
         .progressStreamById(job.id)
         .listen((p) {
