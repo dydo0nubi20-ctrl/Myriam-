@@ -8,6 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/errors/studio_failure.dart';
+import '../../../core/logging/app_logger.dart';
 import '../../feed/models/created_post.dart';
 import '../entities/project.dart';
 import '../export/export_settings.dart';
@@ -30,16 +32,22 @@ class ExportScreen extends ConsumerStatefulWidget {
 class _ExportScreenState extends ConsumerState<ExportScreen> {
   _Phase _phase = _Phase.idle;
   double _progress = 0;
-  String? _error;
+  StudioFailure? _failure;
 
   @override
   void initState() {
     super.initState();
-    // Auto-save a draft the moment the user reaches the export screen —
-    // if the upload fails or they back out, the edit is not lost.
     final project = ref.read(studioSessionProvider).project;
-    unawaited(ref.read(draftRepositoryProvider).save(project));
+    unawaited(_saveDraftQuietly(project));
     _startExport();
+  }
+
+  Future<void> _saveDraftQuietly(StudioProject project) async {
+    try {
+      await ref.read(draftRepositoryProvider).save(project);
+    } catch (e, st) {
+      AppLogger.w('draft autosave failed', error: e, stack: st);
+    }
   }
 
   Future<void> _startExport() async {
@@ -47,18 +55,26 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
     setState(() {
       _phase = _Phase.rendering;
       _progress = 0;
-      _error = null;
+      _failure = null;
     });
 
     try {
       final renderedPath = await _render(project);
       if (!mounted) return;
       await _upload(project, renderedPath);
-    } catch (e) {
+    } on StudioFailure catch (f) {
+      AppLogger.w('export failed', error: f, stack: StackTrace.current);
       if (!mounted) return;
       setState(() {
         _phase = _Phase.failed;
-        _error = e.toString();
+        _failure = f;
+      });
+    } catch (e, st) {
+      AppLogger.e('export failed (unknown)', error: e, stack: st);
+      if (!mounted) return;
+      setState(() {
+        _phase = _Phase.failed;
+        _failure = UnknownFailure(e, st);
       });
     }
   }
@@ -70,21 +86,40 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
       String? finalPath;
       await for (final p in exportPipeline.exportVideo(project, settings)) {
         if (!mounted) return finalPath ?? '';
-        setState(() => _progress = p.fraction * 0.6); // render = first 60% of the bar
+        setState(() => _progress = p.fraction * 0.6);
         if (p.stage == RenderStage.done) {
           finalPath = p.message;
         } else if (p.stage == RenderStage.failed) {
-          throw StateError(p.message ?? 'Render failed');
+          final raw = p.message ?? 'Render failed';
+          throw _classifyRenderFailure(raw);
         } else if (p.stage == RenderStage.cancelled) {
-          throw StateError('Render cancelled');
+          throw const CancelledFailure();
         }
       }
-      if (finalPath == null) throw StateError('Render did not produce an output file');
+      if (finalPath == null) {
+        throw UnknownFailure(
+          StateError('Render did not produce an output file'),
+          StackTrace.current,
+        );
+      }
       return finalPath;
     }
 
-    // Photo path: no video renderer involved at all.
     return ref.read(exportPipelineProvider).exportPhoto(project);
+  }
+
+  StudioFailure _classifyRenderFailure(String message) {
+    final lower = message.toLowerCase();
+    if (lower.contains('source') && lower.contains('not found')) {
+      return const SourceNotFoundFailure('');
+    }
+    if (lower.contains('codec') || lower.contains('format')) {
+      return CodecFailure('', cause: message);
+    }
+    if (lower.contains('space') || lower.contains('storage')) {
+      return StorageFailure(cause: message);
+    }
+    return UnknownFailure(StateError(message), StackTrace.current);
   }
 
   Future<void> _upload(StudioProject project, String renderedPath) async {
@@ -132,11 +167,14 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
           localThumbnailPath: renderedPath,
         ));
         sub.cancel();
-      } else if (p.state == UploadState.failed || p.state == UploadState.cancelled) {
+      } else if (p.state == UploadState.failed ||
+          p.state == UploadState.cancelled) {
         if (!completer.isCompleted) {
           setState(() {
             _phase = _Phase.failed;
-            _error = p.error ?? 'Upload failed';
+            _failure = p.state == UploadState.cancelled
+                ? const CancelledFailure()
+                : (p.failure ?? const NetworkFailure());
           });
         }
         sub.cancel();
@@ -147,15 +185,8 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
     if (mounted) context.pop(post);
   }
 
-  /// Demo-only stand-in for a real network upload. Fakes progress ticks
-  /// over ~1.2s so the UI behaves exactly like the real path, then
-  /// resolves with a `file://` URL pointing at the locally rendered
-  /// output — nothing is sent over the network, and no
-  /// `background_downloader` task is enqueued. This exists purely so the
-  /// full studio flow (camera → editor → preview → "share") can be
-  /// exercised without a backend; it is gated behind [kDemoMode] so it
-  /// can never accidentally run in a shipped build.
-  Future<CreatedPost> _simulateUpload(StudioProject project, String renderedPath) async {
+  Future<CreatedPost> _simulateUpload(
+      StudioProject project, String renderedPath) async {
     for (var i = 1; i <= 6; i++) {
       await Future<void>.delayed(const Duration(milliseconds: 200));
       if (!mounted) break;
@@ -177,18 +208,16 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
     );
   }
 
-  /// Real backends return the hosted URL in the response body — most
-  /// commonly as `{"url": "..."}`. This tries that shape first and only
-  /// falls back to the raw body / local path so the flow never crashes
-  /// while you're still wiring up your own API's exact response format.
   String _resolveUrl(String? responseBody, String fallbackLocalPath) {
-    if (responseBody == null || responseBody.isEmpty) return fallbackLocalPath;
+    if (responseBody == null || responseBody.isEmpty) {
+      return fallbackLocalPath;
+    }
     try {
       final decoded = jsonDecode(responseBody);
-      if (decoded is Map && decoded['url'] is String) return decoded['url'] as String;
-    } catch (_) {
-      // Not JSON — fall through to using the raw body.
-    }
+      if (decoded is Map && decoded['url'] is String) {
+        return decoded['url'] as String;
+      }
+    } catch (_) {}
     return responseBody;
   }
 
@@ -204,7 +233,8 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
                 top: StudioSpacing.md,
                 right: StudioSpacing.md,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: StudioSpacing.md, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: StudioSpacing.md, vertical: 6),
                   decoration: BoxDecoration(
                     color: StudioColors.warning.withValues(alpha: 0.15),
                     border: Border.all(color: StudioColors.warning),
@@ -212,7 +242,10 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
                   ),
                   child: const Text(
                     'DEMO — no real upload',
-                    style: TextStyle(color: StudioColors.warning, fontSize: 11, fontWeight: FontWeight.w700),
+                    style: TextStyle(
+                        color: StudioColors.warning,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700),
                   ),
                 ),
               ),
@@ -223,26 +256,56 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     if (_phase == _Phase.failed) ...[
-                      const Icon(Icons.error_outline, color: StudioColors.error, size: 48),
+                      const Icon(Icons.error_outline,
+                          color: StudioColors.error, size: 48),
                       const SizedBox(height: StudioSpacing.lg),
-                      Text(_error ?? 'Something went wrong', textAlign: TextAlign.center, style: const TextStyle(color: StudioColors.textSecondary)),
+                      Text(
+                        _failure?.userMessage ?? 'Something went wrong',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                            color: StudioColors.textSecondary),
+                      ),
                       const SizedBox(height: StudioSpacing.xl),
-                      StudioButton(label: 'Retry', icon: Icons.refresh, onPressed: _startExport),
-                      const SizedBox(height: StudioSpacing.md),
-                      StudioButton(label: 'Cancel', variant: StudioButtonVariant.secondary, onPressed: () => context.pop()),
+                      if (_failure is! CancelledFailure) ...[
+                        StudioButton(
+                          label: 'Retry',
+                          icon: Icons.refresh,
+                          onPressed: _startExport,
+                        ),
+                        const SizedBox(height: StudioSpacing.md),
+                      ],
+                      StudioButton(
+                        label: 'Cancel',
+                        variant: StudioButtonVariant.secondary,
+                        onPressed: () => context.pop(),
+                      ),
                     ] else ...[
                       SizedBox(
                         width: 64,
                         height: 64,
-                        child: CircularProgressIndicator(value: _progress, strokeWidth: 4, color: StudioColors.accent),
+                        child: CircularProgressIndicator(
+                          value: _progress,
+                          strokeWidth: 4,
+                          color: StudioColors.accent,
+                        ),
                       ),
                       const SizedBox(height: StudioSpacing.lg),
                       Text(
-                        _phase == _Phase.rendering ? 'Rendering…' : _phase == _Phase.uploading ? 'Uploading…' : 'Preparing…',
-                        style: const TextStyle(color: StudioColors.textPrimary, fontWeight: FontWeight.w600),
+                        _phase == _Phase.rendering
+                            ? 'Rendering…'
+                            : _phase == _Phase.uploading
+                                ? 'Uploading…'
+                                : 'Preparing…',
+                        style: const TextStyle(
+                            color: StudioColors.textPrimary,
+                            fontWeight: FontWeight.w600),
                       ),
                       const SizedBox(height: StudioSpacing.sm),
-                      Text('${(_progress * 100).toInt()}%', style: const TextStyle(color: StudioColors.textTertiary)),
+                      Text(
+                        '${(_progress * 100).toInt()}%',
+                        style: const TextStyle(
+                            color: StudioColors.textTertiary),
+                      ),
                     ],
                   ],
                 ),
